@@ -1,0 +1,15 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "csi-driver-lvm.names.plugin.fullname" . }}
+  labels:
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "csi-driver-lvm.names.plugin.fullname" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "csi-driver-lvm.names.plugin.fullname" . }}
+  namespace: {{ .Release.Namespace }}

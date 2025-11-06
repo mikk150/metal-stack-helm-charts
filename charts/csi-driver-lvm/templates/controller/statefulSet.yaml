@@ -1,0 +1,80 @@
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: {{ include "csi-driver-lvm.names.controller.fullname" . }}
+  labels:
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+spec:
+  serviceName: {{ include "csi-driver-lvm.names.controller.fullname" . }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "csi-driver-lvm.names.controller.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "csi-driver-lvm.names.controller.fullname" . }}
+    spec:
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - csi-driver-lvm-plugin
+            topologyKey: kubernetes.io/hostname
+{{- if .Values.nodeSelector.provisioner }}
+      nodeSelector:
+{{ toYaml .Values.nodeSelector.provisioner | indent 8 }}
+{{- end }}
+{{- if .Values.tolerations.provisioner }}
+      tolerations:
+{{ toYaml .Values.tolerations.provisioner | indent 8 }}
+{{- end }}
+      serviceAccountName: {{ include "csi-driver-lvm.names.controller.fullname" . }}
+      containers:
+        - name: csi-attacher
+          image: {{ .Values.sidecarImages.attacher }}
+          imagePullPolicy: IfNotPresent
+          args:
+            - --v=5
+            - --csi-address=/csi/csi.sock
+          securityContext:
+            readOnlyRootFilesystem: true
+            privileged: true
+          volumeMounts:
+          - mountPath: /csi
+            name: socket-dir
+        - name: csi-provisioner
+          image: {{ .Values.sidecarImages.provisioner }}
+          imagePullPolicy: IfNotPresent
+          args:
+            - -v=5
+            - --csi-address=/csi/csi.sock
+            - --feature-gates=Topology=true
+          securityContext:
+            readOnlyRootFilesystem: true
+            privileged: true
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+        - name: csi-resizer
+          image: {{ .Values.sidecarImages.resizer }}
+          imagePullPolicy: IfNotPresent
+          args:
+            - -v=5
+            - -csi-address=/csi/csi.sock
+          securityContext:
+            readOnlyRootFilesystem: true
+            privileged: true
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+      volumes:
+        - hostPath:
+            path: {{ .Values.kubernetes.kubeletPath }}/plugins/{{ .Values.lvm.storageClassStub }}
+            type: DirectoryOrCreate
+          name: socket-dir

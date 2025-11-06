@@ -1,0 +1,35 @@
+{{- if and .Values.rbac.pspEnabled (.Capabilities.APIVersions.Has "policy/v1beta1") }}
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: {{ include "csi-driver-lvm.names.plugin.fullname" . }}
+  labels:
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+spec:
+  allowedHostPaths:
+  - pathPrefix: /lib/modules
+  - pathPrefix: {{ .Values.lvm.hostWritePath }}/cache
+  - pathPrefix: {{ .Values.kubernetes.kubeletPath }}/plugins/{{ .Values.lvm.storageClassStub }}
+  - pathPrefix: {{ .Values.lvm.hostWritePath }}/backup
+  - pathPrefix: {{ .Values.lvm.hostWritePath }}/lock
+  - pathPrefix: {{ .Values.kubernetes.kubeletPath }}/plugins
+  - pathPrefix: {{ .Values.kubernetes.kubeletPath }}/plugins_registry
+  - pathPrefix: /dev
+  - pathPrefix: {{ .Values.kubernetes.kubeletPath }}/pods
+  fsGroup:
+    rule: RunAsAny
+  hostPorts:
+  - max: 0
+    min: 0
+  privileged: true
+  runAsUser:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+  - secret
+  - hostPath
+{{- end }}
